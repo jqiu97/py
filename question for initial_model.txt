@@ -1,0 +1,45 @@
+1. wrong percentage: no negative
+We should use the percentage again just the previous close price only for prices and volume for previous volume
+    no need the adjust close
+@jit(nopython=True)
+def calc_percent_diff(new_value, old_value):
+    diff = abs(new_value - old_value)
+    sum = new_value + old_value
+    return diff / (sum / 2) * 100  # why? lost negative percent
+
+@jit(nopython=True)
+def get_percent_change(*features):
+    res = np.empty((len(features), features[0].shape[0]))
+    res[:, 0] = [feature[0] for feature in features]
+    for i in range(1, res.shape[1]):
+        res[:, i] = [calc_percent_diff(feature[i], feature[i - 1]) for feature in features]
+    return res
+
+2. why does train label nee to be the same size? we only need 1 or 5
+    for i in range( block_num ):
+        train_seq = input_data[i : i + input_window]
+        train_label = input_data[i + output_window : i + input_window + output_window]
+        inout_seq.append((train_seq ,train_label))
+
+3. Do we get the right target for comparison
+input_date shape:  [2150, 2, 30, 6]
+data shape: [10, 2, 30, 6]
+input:  torch.Size([30, 10, 6])  ? why not [10, 30 6]
+target: torch.Size([30, 10, 6]) 
+
+def get_batch(input_data, i , batch_size):
+    # batch_len = min(batch_size, len(input_data) - 1 - i) #  # Now len-1 is not necessary
+    batch_len = min(batch_size, len(input_data) - i)
+    data = input_data[ i:i + batch_len ]
+    input = torch.stack([item[0] for item in data]).view((-1,batch_len,6))
+    # ( seq_len, batch, 6 ) , 6 is feature size
+    target = torch.stack([item[1] for item in data]).view((-1,batch_len,6))
+    return input, target
+
+5. which day do we compare on training?
+    # NOTE: just compare next day
+    loss = criterion(output, targets[:, :, -1:])
+
+6. prediction: do we compare the 30th day after not 1 day after?
+    output = output[-1:].cpu().view(-1)
+    target = targets[-1, :, -1].cpu().view(-1)
